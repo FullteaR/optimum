@@ -403,14 +403,6 @@ class GPTQQuantizer(object):
 
         blocks = recurse_getattr(model, self.block_name_to_quantize)
 
-        if not has_device_map:
-            # put modules from module_name_preceding_first_block on cuda
-            for module_name in self.module_name_preceding_first_block:
-                module = recurse_getattr(model, module_name)
-                if module is None:
-                    raise ValueError(f"Module {module_name} was not found in model")
-                module = module.to(0)
-            blocks[0] = blocks[0].to(0)
 
         def store_input_hook(_, input, *args):
             kwargs = args[0]
@@ -431,7 +423,6 @@ class GPTQQuantizer(object):
             handle = blocks[0].register_forward_pre_hook(store_input_hook, with_kwargs=True)
             for data in dataset:
                 for k, v in data.items():
-                    # put the data on gpu, we won't put them back to cpu
                     if not has_device_map or device.type == "cpu":
                         data[k] = v.to(0)
                     else:
@@ -440,14 +431,14 @@ class GPTQQuantizer(object):
                     model(**data)
                 except ValueError:
                     pass
+
+                for k, v in data.items():
+                    if not has_device_map or device.type == "cpu":
+                        data[k] = v.to(torch.device("cpu"))
+                
+                torch.cuda.empty_cache()
             handle.remove()
 
-        if not has_device_map:
-            blocks[0].to(device)
-            for module_name in self.module_name_preceding_first_block:
-                module = recurse_getattr(model, module_name)
-                if module is None:
-                    raise ValueError(f"Module {module_name} was not found in model")
 
         torch.cuda.empty_cache()
 
@@ -460,7 +451,6 @@ class GPTQQuantizer(object):
                 handle = block.register_forward_pre_hook(store_input_hook, with_kwargs=True)
                 for data in dataset:
                     for k, v in data.items():
-                        # put the data on gpu, we won't put them back to cpu
                         if not has_device_map or device.type == "cpu":
                             data[k] = v.to(0)
                         else:
@@ -469,6 +459,12 @@ class GPTQQuantizer(object):
                         model(**data)
                     except ValueError:
                         pass
+
+                    for k, v in data.items():
+                        if not has_device_map or device.type == "cpu":
+                            data[k] = v.to(torch.device("cpu"))
+                
+                torch.cuda.empty_cache()
                 handle.remove()
 
             # move block to cuda if needed
@@ -525,7 +521,11 @@ class GPTQQuantizer(object):
                         g_idx,
                     )
                     gptq[name].free()
+                for k,v in subset_layers.items():
+                    subset_layers[k] = v.to("cpu")
+                    del subset_layers[k]
                 del subset_layers
+                torch.cuda.empty_cache()
             # we get the new output from the partial quantized block
             if self.cache_block_outputs:
                 for j in range(len(dataset)):
@@ -534,11 +534,17 @@ class GPTQQuantizer(object):
 
                 # put back to device
                 if not has_device_map:
-                    blocks[i] = block.to(device)
+                    blocks[i] = block.to(torch.device("cpu"))
+                for k,v in layers.items():
+                    layers[k] = v.to("cpu")
+                    del layers[k]
                 del layers
                 del layer_inputs
                 layer_inputs, layer_outputs = layer_outputs, []
             else:
+                for k,v in layers.items():
+                    layers[k] = v.to("cpu")
+                    del layers[k]
                 del layers
                 del layer_inputs
                 layer_inputs = []
