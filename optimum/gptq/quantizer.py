@@ -464,7 +464,7 @@ class GPTQQuantizer(object):
                         if not has_device_map or device.type == "cpu":
                             data[k] = v.to(torch.device("cpu"))
                 
-                torch.cuda.empty_cache()
+                    torch.cuda.empty_cache()
                 handle.remove()
 
             # move block to cuda if needed
@@ -537,14 +537,12 @@ class GPTQQuantizer(object):
                     blocks[i] = block.to(torch.device("cpu"))
                 for k,v in layers.items():
                     layers[k] = v.to("cpu")
-                    del layers[k]
                 del layers
                 del layer_inputs
                 layer_inputs, layer_outputs = layer_outputs, []
             else:
                 for k,v in layers.items():
                     layers[k] = v.to("cpu")
-                    del layers[k]
                 del layers
                 del layer_inputs
                 layer_inputs = []
