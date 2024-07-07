@@ -533,7 +533,7 @@ class GPTQQuantizer(object):
 
                 # put back to device
                 if not has_device_map:
-                    blocks[i] = block.to(torch.device("cpu"))
+                    blocks[i] = block.to(device)
                 for k,v in layers.items():
                     layers[k] = v.to("cpu")
                 del layers
