@@ -523,7 +523,6 @@ class GPTQQuantizer(object):
                     gptq[name].free()
                 for k,v in subset_layers.items():
                     subset_layers[k] = v.to("cpu")
-                    del subset_layers[k]
                 del subset_layers
                 torch.cuda.empty_cache()
             # we get the new output from the partial quantized block
@@ -538,12 +537,16 @@ class GPTQQuantizer(object):
                 for k,v in layers.items():
                     layers[k] = v.to("cpu")
                 del layers
+                for k,v in layer_inputs.items():
+                    layer_inputs[k] = v.to("cpu")
                 del layer_inputs
                 layer_inputs, layer_outputs = layer_outputs, []
             else:
                 for k,v in layers.items():
                     layers[k] = v.to("cpu")
                 del layers
+                for k,v in layer_inputs.items():
+                    layer_inputs[k] = v.to("cpu")
                 del layer_inputs
                 layer_inputs = []
             torch.cuda.empty_cache()
