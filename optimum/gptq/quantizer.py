@@ -485,10 +485,6 @@ class GPTQQuantizer(object):
                 else:
                     layers_name_list = [list(layers.keys())]
             logger.info(f"Module to quantize {layers_name_list}")
-            layers_name_counter = Counter()
-            for l in layers_name_list:
-                layers_name_counter+=Counter(l)
-            layers_name_counter = dict(layers_name_counter)
             for subset_name_list in tqdm(layers_name_list, leave=False, desc="Quantizing layers inside the block"):
                 subset_layers = {name: layers[name] for name in subset_name_list}
                 gptq = {}
@@ -526,10 +522,6 @@ class GPTQQuantizer(object):
                         g_idx,
                     )
                     gptq[name].free()
-                for l in subset_layers.keys():
-                    layers_name_counter[l] = layers_name_counter[l] - 1
-                    if layers_name_counter[l] <= 0:
-                        subset_layers[l] = subset_layers[l].to("cpu")
                 del subset_layers
                 torch.cuda.empty_cache()
                 torch.cuda.reset_peak_memory_stats()
