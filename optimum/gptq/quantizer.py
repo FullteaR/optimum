@@ -536,7 +536,8 @@ class GPTQQuantizer(object):
                     layers[k] = v.to("cpu")
                 del layers
                 for layer_input in layer_inputs:
-                    layer_input.to("cpu")
+                    for l in layer_input:
+                        l = l.to("cpu")
                 del layer_inputs
                 layer_inputs, layer_outputs = layer_outputs, []
             else:
